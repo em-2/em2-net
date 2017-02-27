@@ -1,0 +1,219 @@
+version: '2'
+
+volumes:
+ pg_data: {}
+
+networks:
+  mynet:
+    ipam:
+      config:
+      - subnet: 172.25.0.0/24
+
+services:
+  logs:
+    image: gliderlabs/logspout
+    environment:
+      SYSLOG_HOSTNAME: 'em2web'
+    networks:
+    - mynet
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+    - 5000:80
+
+  postgres:
+    image: postgres:9.6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: docker
+    volumes:
+    - pg_data:/var/lib/postgresql/data
+    networks:
+    - mynet
+    depends_on:
+    - logs
+
+  redis:
+    image: redis:3.0-alpine
+    networks:
+    - mynet
+    depends_on:
+    - logs
+
+  static:
+    image: nginx:1.10-alpine
+    volumes:
+    - ../em2-web/static_build:/usr/share/nginx/html:ro
+    ports:
+    - 5001:80
+
+  ns:
+    image: samuelcolvin/dnserver
+    volumes:
+    - ./zones.txt:/zones/zones.txt:ro
+    networks:
+      mynet:
+        ipv4_address: 172.25.0.101
+
+
+
+  # node 8000
+  em2.node8000.com:
+    image: em2
+    restart: on-failure:2
+    environment:
+      EM2_COMMAND: web
+      EM2_DEBUG: 'true'
+
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_PG_DATABASE: em2node8000
+      EM2_R_HOST: redis
+      EM2_R_DATABASE: 8
+      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_WEB_PORT: 80
+    volumes:
+    - ./private8000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    expose:
+    - 80
+    ports:
+    - 8001:80
+    depends_on:
+    - postgres
+    - redis
+
+  w.node8000.com:
+    image: em2
+    restart: on-failure:2
+    environment:
+      EM2_COMMAND: worker
+      EM2_DEBUG: 'true'
+
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_PG_DATABASE: em2node8000
+      EM2_R_HOST: redis
+      EM2_R_DATABASE: 8
+      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_COMMS_SCHEMA: http
+    volumes:
+    - ./private8000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    depends_on:
+    - em2.node8000.com  # so db is already created
+    - postgres
+    - redis
+
+  node8000.com:
+    image: em2-web
+    restart: on-failure:2
+    environment:
+      EM2_DEBUG: 'true'
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_PG_DATABASE: em2node8000
+      EM2_R_HOST: redis
+      EM2_R_DATABASE: 8
+      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_STATIC_ROOT_URL: http://localhost:5001
+    volumes:
+    - ./private8000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    ports:
+    - 8000:8000
+    depends_on:
+    - em2.node8000.com  # so db is already created
+    - postgres
+    - redis
+
+
+
+  # node 9000
+  em2.node9000.com:
+    image: em2
+    restart: on-failure:2
+    environment:
+      EM2_COMMAND: web
+      EM2_DEBUG: 'true'
+
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_R_HOST: redis
+      EM2_R_DATABASE: 9
+      EM2_PG_DATABASE: em2node9000
+      EM2_WEB_PORT: 80
+      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+    volumes:
+    - ./private9000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    expose:
+    - 80
+    ports:
+    - 9001:80
+    depends_on:
+    - postgres
+    - redis
+
+  w.node9000.com:
+    image: em2
+    restart: on-failure:2
+    environment:
+      EM2_COMMAND: worker
+      EM2_DEBUG: 'true'
+
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_R_HOST: redis
+      EM2_HEALTH_CHECK: worker
+      EM2_R_DATABASE: 9
+      EM2_PG_DATABASE: em2node9000
+      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_COMMS_SCHEMA: http
+    volumes:
+    - ./private9000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    depends_on:
+    - em2.node9000.com  # so db is already created
+    - postgres
+    - redis
+
+  node9000.com:
+    image: em2-web
+    restart: on-failure:2
+    environment:
+      EM2_DEBUG: 'true'
+      EM2_PG_HOST: postgres
+      EM2_PG_PASSWORD: docker
+      EM2_R_HOST: redis
+      EM2_STATIC_ROOT_URL: http://localhost:5001
+      EM2_R_DATABASE: 9
+      EM2_PG_DATABASE: em2node9000
+      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+    volumes:
+    - ./private9000.pem:/home/root/private.pem:ro
+    dns: 172.25.0.101
+    networks:
+    - mynet
+    ports:
+    - 9000:8000
+    depends_on:
+    - em2.node9000.com  # so db is already created
+    - postgres
+    - redis
