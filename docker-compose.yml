@@ -1,10 +1,10 @@
-version: '2'
+version: '3'
 
 volumes:
  pg_data: {}
 
 networks:
-  mynet:
+  default:
     ipam:
       config:
       - subnet: 172.25.0.0/24
@@ -14,8 +14,6 @@ services:
     image: gliderlabs/logspout
     environment:
       SYSLOG_HOSTNAME: 'em2web'
-    networks:
-    - mynet
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -28,15 +26,11 @@ services:
       POSTGRES_PASSWORD: docker
     volumes:
     - pg_data:/var/lib/postgresql/data
-    networks:
-    - mynet
     depends_on:
     - logs
 
   redis:
     image: redis:3.0-alpine
-    networks:
-    - mynet
     depends_on:
     - logs
 
@@ -52,7 +46,7 @@ services:
     volumes:
     - ./zones.txt:/zones/zones.txt:ro
     networks:
-      mynet:
+      default:
         ipv4_address: 172.25.0.101
 
 
@@ -70,14 +64,14 @@ services:
       EM2_PG_DATABASE: em2node8000
       EM2_R_HOST: redis
       EM2_R_DATABASE: 8
-      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_LOCAL_DOMAIN: em2.node8000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
       EM2_WEB_PORT: 80
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private8000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     expose:
     - 80
     ports:
@@ -98,14 +92,14 @@ services:
       EM2_PG_DATABASE: em2node8000
       EM2_R_HOST: redis
       EM2_R_DATABASE: 8
-      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_LOCAL_DOMAIN: em2.node8000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
       EM2_COMMS_SCHEMA: http
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private8000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     depends_on:
     - em2.node8000.com  # so db is already created
     - postgres
@@ -121,14 +115,14 @@ services:
       EM2_PG_DATABASE: em2node8000
       EM2_R_HOST: redis
       EM2_R_DATABASE: 8
-      EM2_LOCAL_DOMAIN: node8000.com
+      EM2_LOCAL_DOMAIN: em2.node8000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
       EM2_STATIC_ROOT_URL: http://localhost:5001
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private8000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     ports:
     - 8000:8000
     depends_on:
@@ -152,13 +146,13 @@ services:
       EM2_R_DATABASE: 9
       EM2_PG_DATABASE: em2node9000
       EM2_WEB_PORT: 80
-      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_LOCAL_DOMAIN: em2.node9000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private9000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     expose:
     - 80
     ports:
@@ -180,14 +174,14 @@ services:
       EM2_HEALTH_CHECK: worker
       EM2_R_DATABASE: 9
       EM2_PG_DATABASE: em2node9000
-      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_LOCAL_DOMAIN: em2.node9000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
       EM2_COMMS_SCHEMA: http
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private9000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     depends_on:
     - em2.node9000.com  # so db is already created
     - postgres
@@ -204,13 +198,13 @@ services:
       EM2_STATIC_ROOT_URL: http://localhost:5001
       EM2_R_DATABASE: 9
       EM2_PG_DATABASE: em2node9000
-      EM2_LOCAL_DOMAIN: node9000.com
+      EM2_LOCAL_DOMAIN: em2.node9000.com
       EM2_PRIVATE_DOMAIN_KEY_FILE: /home/root/private.pem
+      EM2_COMMS_DNS_IP: 172.25.0.101
+    healthcheck:
+      disable: true
     volumes:
     - ./private9000.pem:/home/root/private.pem:ro
-    dns: 172.25.0.101
-    networks:
-    - mynet
     ports:
     - 9000:8000
     depends_on:
